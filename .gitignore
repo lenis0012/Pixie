@@ -20,6 +20,7 @@ $RECYCLE.BIN/
 *.iml
 .idea
 target
+config.json
 
 # =========================
 # Operating System Files
