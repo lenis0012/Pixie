@@ -17,7 +17,8 @@ public class Definition {
     @Storable
     private String example = "";
 
-    public Definition() {}
+    public Definition() {
+    }
 
     public Definition(String name, String meaning, String definedBy, String example) {
         this.name = name;

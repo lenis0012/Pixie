@@ -18,13 +18,11 @@ import com.lenis0012.chatango.pixie.entities.UserModel;
 import com.mongodb.BasicDBObject;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
-import java.util.regex.Pattern;
 
 public class Main implements EventListener {
 
@@ -65,22 +63,40 @@ public class Main implements EventListener {
         } catch(Exception e) {
             ChatangoAPI.getLogger().log(Level.SEVERE, "Failed to scan command classes!", e);
         }
+
+        // PM Server
+        engine.getPmManager().onMessage(e -> {
+            ChatangoAPI.getLogger().log(Level.INFO, "[PM] {0}: {1}", new Object[]{e.getUser(), e.getMessage()});
+            if(e.getMessage().startsWith("warnme ")) {
+                String target = e.getMessage().split(" ")[1].toLowerCase();
+                UserModel model = pixie.getUser(target);
+                if(!model.getLastIp().isEmpty()) {
+                    model.addStalker(e.getUser());
+                    pixie.database().saveModel(model, new BasicDBObject("Name", model.getName()));
+                    engine.getPmManager().message(e.getUser(), "I will warn you when " + target + " sends a message!");
+                } else {
+                    engine.getPmManager().message(e.getUser(), "Unknown user!");
+                }
+            }
+        });
+        engine.getPmManager().connect();
     }
 
     @EventHandler
     public void onMessageReceive(MessageReceiveEvent event) {
+        if(pixie == null) return; // Wait until fully started
         final Room room = event.getRoom();
         final Message message = event.getMessage();
         final User user = message.getUser();
 
         List<String> enabled = Utils.convertList(pixie.getConfig().getList("enabled-rooms"), String.class);
-        ChatangoAPI.getLogger().log(Level.INFO, "{0}: {1}", new Object[] {message.getUser().getName(), message.getText()});
+        ChatangoAPI.getLogger().log(Level.INFO, "{0}: {1}", new Object[]{message.getUser().getName(), message.getText()});
         UserModel model = pixie.getUser(user.getName());
         String[] params = message.getText().split(" ");
         if(params.length > 1 && enabled.contains(room.getRoomName())) {
             String name = params[0];
             String cmd = params[1];
-            if(name.equalsIgnoreCase("pixie") && (!model.isBanned())) {
+            if(name.equalsIgnoreCase("pixie") && !model.isBanned()) {
                 String[] args = new String[params.length - 2];
                 System.arraycopy(params, 2, args, 0, args.length);
                 boolean cmdFound = false;
@@ -106,11 +122,11 @@ public class Main implements EventListener {
                         }
                     }
                 }
-                if(!cmdFound && System.currentTimeMillis() > nextSimSimi) {
+                if(!cmdFound && System.currentTimeMillis() > nextSimSimi && !model.isBanned()) {
                     try {
                         String response = pixie.getSimSimi().think(message.getText().substring("pixie ".length()));
                         pixie.msgTo(room, user, response);
-                    } catch (IOException e) {
+                    } catch(IOException e) {
                         pixie.msgTo(room, user, "Error: " + e.getMessage());
                     }
 
@@ -131,13 +147,21 @@ public class Main implements EventListener {
 
         // Store ip
         if(!message.getIpAddress().isEmpty()) {
-            if (model.addIpAddress(message.getIpAddress())) {
+            if(model.addIpAddress(message.getIpAddress())) {
                 pixie.database().saveModel(model, new BasicDBObject("Name", model.getName()));
             }
         }
 
         // Store UID
         if(model.addUid(user.getUid())) {
+            pixie.database().saveModel(model, new BasicDBObject("Name", model.getName()));
+        }
+
+        // Warn stalkers
+        List<String> stalkers = model.getStalkers();
+        if(!stalkers.isEmpty()) {
+            stalkers.forEach(s -> engine.getPmManager().message(s, model.getName() + " has just sent a message in tuturugate!"));
+            model.clearStalkers();
             pixie.database().saveModel(model, new BasicDBObject("Name", model.getName()));
         }
     }

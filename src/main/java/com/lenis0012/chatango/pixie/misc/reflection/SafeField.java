@@ -12,7 +12,6 @@
 package com.lenis0012.chatango.pixie.misc.reflection;
 
 
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.logging.Level;

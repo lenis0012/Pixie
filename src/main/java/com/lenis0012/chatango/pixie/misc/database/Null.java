@@ -19,6 +19,7 @@ import lombok.Getter;
  * @author Lennart ten Wolde
  */
 public class Null {
-    private static final @Getter
+    private static final
+    @Getter
     Object object = new Null();
 }

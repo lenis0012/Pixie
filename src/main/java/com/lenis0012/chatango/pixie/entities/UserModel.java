@@ -4,6 +4,8 @@ import com.google.common.collect.Lists;
 import com.lenis0012.chatango.pixie.misc.database.Model;
 import com.lenis0012.chatango.pixie.misc.database.Storable;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Model(name = "users")
@@ -26,7 +28,17 @@ public class UserModel {
     @Storable
     private String lastIp = "";
 
-    public UserModel() {}
+    @Storable
+    private int votes = 0;
+
+    @Storable
+    private int lastVote = -1;
+
+    @Storable(genericType = String.class)
+    private List<String> stalkers = new ArrayList<>();
+
+    public UserModel() {
+    }
 
     public UserModel(String name) {
         this.name = name;
@@ -38,6 +50,18 @@ public class UserModel {
 
     public List<String> getIpAddresses() {
         return ipAddresses;
+    }
+
+    public List<String> getStalkers() {
+        return Collections.unmodifiableList(stalkers);
+    }
+
+    public void addStalker(String stalker) {
+        stalkers.add(stalker);
+    }
+
+    public void clearStalkers() {
+        stalkers.clear();
     }
 
     public boolean addIpAddress(String address) {
@@ -62,6 +86,22 @@ public class UserModel {
 
     public List<String> getPuids() {
         return puids;
+    }
+
+    public long getLastVote() {
+        return lastVote;
+    }
+
+    public void setLastVote(int lastVote) {
+        this.lastVote = lastVote;
+    }
+
+    public int getVotes() {
+        return votes;
+    }
+
+    public void setVotes(int votes) {
+        this.votes = votes;
     }
 
     public boolean isAdmin() {

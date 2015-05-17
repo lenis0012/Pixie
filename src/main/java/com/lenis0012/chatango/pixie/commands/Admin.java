@@ -24,21 +24,14 @@ import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
-import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineFactory;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.net.Socket;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -75,14 +68,15 @@ public class Admin {
                 String example = entry.has("example") ? entry.get("example").getAsString() : "";
                 definition = new Definition(name.toLowerCase(), meaning, entry.get("author").getAsString(), example);
             }
-        } if(definition == null) {
+        }
+        if(definition == null) {
             definition = new Definition(name.toLowerCase(), "", "", "");
         }
 
         pixie.database().loadModel(definition, new BasicDBObject("Name", definition.getName()));
         if(!definition.getMeaning().isEmpty()) {
             pixie.msg(room, "Definition by " + definition.getDefinedBy() + ": " + definition.getMeaning());
-            if (!definition.getExample().isEmpty()) {
+            if(!definition.getExample().isEmpty()) {
                 pixie.msg(room, "Example: " + definition.getExample(), 500L, TimeUnit.MILLISECONDS);
             }
         }
@@ -101,7 +95,7 @@ public class Admin {
                 info.getModel().setDelay(Integer.parseInt(args[0]));
                 info.delay(info.getModel().getDelay());
                 pixie.database().saveModel(info.getModel(), new BasicDBObject("Name", info.getModel().getName()));
-                pixie.msgTo(room, user, "Set delay for command "+ args[1] + " to " + args[0]);
+                pixie.msgTo(room, user, "Set delay for command " + args[1] + " to " + args[0]);
                 return;
             }
         }
@@ -161,7 +155,7 @@ public class Admin {
         List<String> names = pixie.database().findModels(UserModel.class, new BasicDBObject("IpAddresses", new BasicDBObject("$in", list))).stream().map(UserModel::getName).collect(Collectors.toList());
         names.remove(name);
         if(names.size() > 0) {
-            StringBuilder builder = new StringBuilder("List of alts: ");
+            StringBuilder builder = new StringBuilder("List of alts(" + names.size() + "): ");
             names.forEach(s -> builder.append(s).append(", "));
             builder.setLength(builder.length() - 2);
             pixie.msgTo(room, user, builder.toString());
@@ -211,7 +205,7 @@ public class Admin {
     }
 
     @Command(aliases = {"adddare"}, adminOnly = true)
-     public void addDare(Room room, User user, String[] args) {
+    public void addDare(Room room, User user, String[] args) {
         pixie.getDares().add(Joiner.on(' ').join(args));
         pixie.getConfig().save();
         pixie.msgTo(room, user, "Added message to dare list!");
@@ -247,7 +241,7 @@ public class Admin {
             if(response != null) {
                 pixie.msg(room, response.toString());
             }
-        } catch (ScriptException e) {
+        } catch(ScriptException e) {
             pixie.msgTo(room, user, e.getMessage());
         }
     }
@@ -271,12 +265,13 @@ public class Admin {
                             response = jw ? ses2.think(response) : ses1.think(response);
                             pixie.msg(room, (jw ? "JW: " : "CB: ") + response);
                             jw = !jw;
-                        } catch (Exception e) {
+                        } catch(Exception e) {
                             botRunning = false;
                         }
                         try {
                             Thread.sleep(3000L);
-                        } catch (InterruptedException e) {}
+                        } catch(InterruptedException e) {
+                        }
                     }
                 }
             }.start();
@@ -293,7 +288,7 @@ public class Admin {
         try {
             ChatangoAPI.createAccount(args[0], args[1], args[2], room.getRoomName());
             pixie.msgTo(room, user, "If this function actually worked, the account is created.");
-        } catch (RegistrationException e) {
+        } catch(RegistrationException e) {
             pixie.msgTo(room, user, "Error: " + e.getMessage());
         }
     }
@@ -343,5 +338,49 @@ public class Admin {
         } else {
             pixie.msgTo(room, user, "Amount must be between 0-100%");
         }
+    }
+
+    @Command(adminOnly = true)
+    public void ulist(final Room room, final User user, String[] args) {
+        List<String> userList;
+        if(args.length > 0) {
+            userList = room.getUserList().stream().filter(u -> u.getGender().equalsIgnoreCase(args[0])).map(User::getName).collect(Collectors.toList());
+        } else {
+            userList = room.getUserList().stream().map(User::getName).collect(Collectors.toList());
+        }
+        System.out.println(userList);
+        pixie.msgTo(room, user, "Users: " + Joiner.on(", ").join(userList));
+    }
+
+    @Command(aliases = {"mute", "unmute"}, adminOnly = true)
+    public void mute(final Room room, final User user, String[] args) {
+        boolean muted = !pixie.isMuted();
+        String msg = muted ? "Muted" : "Unmuted";
+        if(!muted) {
+            pixie.setMuted(false);
+        }
+        pixie.msgTo(room, user, "Ayy s-senpai... don't make me so moist... (" + msg + ")");
+        if(muted) {
+            pixie.setMuted(true);
+        }
+    }
+
+    @Command(adminOnly = true)
+    public void ping(final Room room, final User user, String[] args) {
+        pixie.msg(room, "Pong!");
+    }
+
+    @Command(adminOnly = true)
+    public void pm(final Room room, final User user, String[] args) {
+        if(args.length < 2) {
+            pixie.msgTo(room, user, "Usage: pm [user] [msg]");
+            return;
+        }
+        StringBuilder builder = new StringBuilder();
+        for(int i = 1; i < args.length; i++) {
+            builder.append(args[i]).append(" ");
+        }
+        pixie.getEngine().getPmManager().message(args[0].toLowerCase().replace("@", ""), builder.toString());
+        pixie.msgTo(room, user, "Sent PM to " + args[0]);
     }
 }

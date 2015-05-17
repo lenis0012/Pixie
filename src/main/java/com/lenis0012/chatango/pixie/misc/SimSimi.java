@@ -26,9 +26,10 @@ public class SimSimi {
     }
 
     public void setSexuality(int sexuality) {
-        double val = sexuality / 100.0; // Percentage to double
+        double val = (100 - sexuality) / 100.0; // Percentage to double
         this.sexuality = val;
         pixie.getConfig().set("simsimi.sexuality", val);
+        pixie.getConfig().save();
     }
 
     public String think(String question) throws IOException {
@@ -43,21 +44,25 @@ public class SimSimi {
         }
         reader.close();
 
-        JsonObject response = jsonParser.parse(builder.toString()).getAsJsonObject();
-        int cod = response.get("result").getAsInt();
-        switch(cod) {
-            case 100:
-                return response.get("response").getAsString();
-            case 400:
-                throw new IOException("Bad request.");
-            case 401:
-                throw new IOException("Invalid API-KEY.");
-            case 404:
-                throw new IOException("Page not found.");
-            case 500:
-                throw new IOException("Internal server error.");
-            default:
-                throw new IOException("Unkown response code: " + cod);
+        try {
+            JsonObject response = jsonParser.parse(builder.toString()).getAsJsonObject();
+            int cod = response.get("result").getAsInt();
+            switch(cod) {
+                case 100:
+                    return response.has("response") ? response.get("response").getAsString() : response.get("msg").getAsString();
+                case 400:
+                    throw new IOException("Bad request.");
+                case 401:
+                    throw new IOException("Invalid API-KEY.");
+                case 404:
+                    throw new IOException("Page not found.");
+                case 500:
+                    throw new IOException("Internal server error.");
+                default:
+                    throw new IOException("Unkown response code: " + cod);
+            }
+        } catch(Exception e) {
+            throw new IOException("Cannot parse response: " + builder.toString());
         }
     }
 }

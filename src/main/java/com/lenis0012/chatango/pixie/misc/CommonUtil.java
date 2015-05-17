@@ -67,7 +67,7 @@ public class CommonUtil {
             int O = charMap0['O'] + charMap1['O'];
             int V = charMap0['V'] + charMap1['V'];
             int E = charMap0['E'] + charMap1['E'];
-            int percentage = ((L+O)*(L+V)*(L+E)*(O+V)*(O+E)*(V+E)) % 100;
+            int percentage = ((L + O) * (L + V) * (L + E) * (O + V) * (O + E) * (V + E)) % 100;
             if(percentage > max || (percentage == max && otherUser.compareTo(best) < 0)) {
                 best = otherUser;
                 max = percentage;
@@ -94,6 +94,6 @@ public class CommonUtil {
         int O = charMap0['O'] + charMap1['O'];
         int V = charMap0['V'] + charMap1['V'];
         int E = charMap0['E'] + charMap1['E'];
-        return ((L+O)*(L+V)*(L+E)*(O+V)*(O+E)*(V+E)) % 100;
+        return ((L + O) * (L + V) * (L + E) * (O + V) * (O + E) * (V + E)) % 100;
     }
 }

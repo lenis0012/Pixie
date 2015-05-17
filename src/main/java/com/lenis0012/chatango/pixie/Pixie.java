@@ -17,7 +17,6 @@ import com.lenis0012.chatango.pixie.misc.SimSimi;
 import com.lenis0012.chatango.pixie.misc.database.Database;
 import com.lenis0012.chatango.pixie.misc.database.DatabaseEngine;
 import com.mongodb.BasicDBObject;
-import lombok.SneakyThrows;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -29,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 public class Pixie {
@@ -46,10 +44,14 @@ public class Pixie {
     private final Random random;
     private final JsonConfig config;
     private final DatabaseEngine databaseEngine;
+    private final String ytApiKey;
+    private final String imgurApiKey;
     private List<String> truths;
     private List<String> dares;
     private Map<String, List<String>> replacements = Maps.newConcurrentMap();
     private final SimSimi simSimi;
+    private boolean muted;
+    private long pingTime;
 
     public Pixie(Engine engine, Set<CommandInfo> commands) {
         this.commands = commands;
@@ -60,6 +62,8 @@ public class Pixie {
         this.dares = Utils.convertList(config.getList("dares", new JsonArray()), String.class);
         config.get("mashape-key", new JsonPrimitive(""));
         config.get("pastebin.api-key", new JsonPrimitive(""));
+        this.ytApiKey = config.get("youtube.api-key", new JsonPrimitive("")).getAsString();
+        this.imgurApiKey = config.get("imgur.api-key", new JsonPrimitive("")).getAsString();
         this.databaseEngine = new DatabaseEngine(
                 config.get("database.host", new JsonPrimitive("localhost")).getAsString(),
                 config.get("database.port", new JsonPrimitive(27017)).getAsInt());
@@ -70,6 +74,30 @@ public class Pixie {
 
         this.simSimi = new SimSimi(this);
         config.save();
+    }
+
+    public String getImgurApiKey() {
+        return imgurApiKey;
+    }
+
+    public long getPingTime() {
+        return pingTime;
+    }
+
+    public void setPingTime(long pingTime) {
+        this.pingTime = pingTime;
+    }
+
+    public boolean isMuted() {
+        return muted;
+    }
+
+    public void setMuted(boolean muted) {
+        this.muted = muted;
+    }
+
+    public String getYtApiKey() {
+        return ytApiKey;
     }
 
     public SimSimi getSimSimi() {
@@ -189,7 +217,8 @@ public class Pixie {
             public void run() {
                 try {
                     sleep(ms);
-                } catch(InterruptedException e) {}
+                } catch(InterruptedException e) {
+                }
                 msg(room, msg);
             }
         }.start();
@@ -200,6 +229,9 @@ public class Pixie {
     }
 
     public void msg(Room room, String msg) {
+        if(muted) {
+            return;
+        }
         room.message(new Message(msg));
     }
 }

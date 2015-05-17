@@ -11,9 +11,9 @@
 
 package com.lenis0012.chatango.pixie.misc.database;
 
+import com.google.common.collect.Lists;
 import com.lenis0012.chatango.pixie.misc.CommonUtil;
 import com.lenis0012.chatango.pixie.misc.reflection.SafeField;
-import com.google.common.collect.Lists;
 import com.mongodb.*;
 
 import java.util.List;
@@ -66,7 +66,7 @@ public class Database {
      * Load a model from the database if exists.
      *
      * @param instance Instance of the model
-     * @param query Query to find data in the database
+     * @param query    Query to find data in the database
      */
     public void loadModel(Object instance, BasicDBObject query) {
         // Find the collection name
@@ -96,7 +96,7 @@ public class Database {
      * Save a model to the database.
      *
      * @param instance Instance of model
-     * @param query The query to find and update the existing entry (null force create new)
+     * @param query    The query to find and update the existing entry (null force create new)
      */
     public void saveModel(Object instance, BasicDBObject query) {
         // Find the collection name

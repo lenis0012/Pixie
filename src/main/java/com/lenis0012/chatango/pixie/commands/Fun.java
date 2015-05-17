@@ -4,7 +4,6 @@ import com.google.common.base.Joiner;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.lenis0012.chatango.bot.ChatangoAPI;
 import com.lenis0012.chatango.bot.api.User;
 import com.lenis0012.chatango.bot.engine.Room;
 import com.lenis0012.chatango.bot.utils.Utils;
@@ -23,17 +22,46 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class Fun {
     private static final String YOUTUBE_VIDEO_URL = "https://www.youtube.com/watch";
-    private static final String YOUTUBE_API_URL = "https://gdata.youtube.com/feeds/api/videos";
     private static final String WATHER_URL = "http://api.openweathermap.org/data/2.5/weather";
     private static final String YODA_URL = "https://yoda.p.mashape.com/yoda";
     private final JsonParser jsonParser = new JsonParser();
     private final Pixie pixie;
+
+    @Command
+    public void ship(Room room, User user, String[] args) {
+        if(args.length < 1) {
+            pixie.msgTo(room, user, "Usage: ship [user1] [optinal:user2]");
+            return;
+        }
+        String u1 = args[0].replace("@", "");
+        String u2 = null;
+        if(args.length > 1) {
+            u2 = args[1].replace("@", "");
+        } else {
+            User u = room.findUser(u1.toLowerCase());
+            if(u != null) {
+                String gender = u.getGender().equalsIgnoreCase("f") ? "m" : u.getGender().equalsIgnoreCase("m") ? "f" : null;
+                if(gender != null) {
+                    List<String> options = room.getUserList().stream().filter(us -> us.getGender().equalsIgnoreCase(gender)).map(User::getName).collect(Collectors.toList());
+                    u2 = options.isEmpty() ? null : options.get(new Random().nextInt(options.size()));
+                }
+            }
+        }
+
+        if(u2 != null) {
+            pixie.msgTo(room, user, "I ship @" + u1 + " x @" + u2);
+        } else {
+            pixie.msgTo(room, user, "I was unable to achieve " + u1 + " 's gender!");
+        }
+    }
 
     @Command(aliases = {"t/d"})
     public void truthOrDare(Room room, User user, String[] args) {
@@ -106,15 +134,23 @@ public class Fun {
         if(sname.equalsIgnoreCase("random")) {
             sname = pixie.pickUsers(room, "USER");
         }
-        try {
-            String url = Utils.urlEncode("https://love-calculator.p.mashape.com/getPercentage", "fname", fname, "sname", sname);
-            HttpResponse<String> response = Unirest.get(url).header("X-Mashape-Key", pixie.getMashapeKey()).header("Accept", "application/json").asString();
-            JsonObject json = jsonParser.parse(response.getBody()).getAsJsonObject();
-            String percentage = json.get("percentage").getAsString();
-            String message = json.get("result").getAsString();
-            pixie.msg(room, String.format("%s and %s match for %s. %s", fname, sname, percentage + "%", message));
-        } catch(Exception e) {
-            pixie.msgTo(room, user, String.format("@%s and @%s give an error, they probably don't match.", fname, sname));
+        User u0 = room.findUser(fname);
+        User u1 = room.findUser(sname);
+        if(fname.equalsIgnoreCase("LennyHaremKing") && u1 != null && u1.getGender().equalsIgnoreCase("f")) {
+            pixie.msg(room, String.format("%s and %s match for %s. %s", fname, sname, "101%", "Best match in da world."));
+        } else if(sname.equalsIgnoreCase("LennyHaremKing") && u0 != null && u0.getGender().equalsIgnoreCase("f")) {
+            pixie.msg(room, String.format("%s and %s match for %s. %s", fname, sname, "101%", "Best match in da world."));
+        } else {
+            try {
+                String url = Utils.urlEncode("https://love-calculator.p.mashape.com/getPercentage", "fname", fname, "sname", sname);
+                HttpResponse<String> response = Unirest.get(url).header("X-Mashape-Key", pixie.getMashapeKey()).header("Accept", "application/json").asString();
+                JsonObject json = jsonParser.parse(response.getBody()).getAsJsonObject();
+                String percentage = json.get("percentage").getAsString();
+                String message = json.get("result").getAsString();
+                pixie.msg(room, String.format("%s and %s match for %s. %s", fname, sname, percentage + "%", message));
+            } catch(Exception e) {
+                pixie.msgTo(room, user, String.format("@%s and @%s give an error, they probably don't match.", fname, sname));
+            }
         }
     }
 
@@ -131,7 +167,7 @@ public class Fun {
 
     @Command(aliases = {"youtube", "yt"})
     public void youtube(Room room, User user, String[] args) {
-        String url = Utils.urlEncode(YOUTUBE_API_URL, "q", Joiner.on(' ').join(args), "max-results", "1", "v", "2", "alt", "jsonc");
+        String url = Utils.urlEncode("https://www.googleapis.com/youtube/v3/search", "order", "relevance", "part", "snippet", "type", "video", "maxResults", "1", "q", Joiner.on(' ').join(args), "key", pixie.getYtApiKey());
         try {
             HttpsURLConnection connection = (HttpsURLConnection) new URL(url).openConnection();
             connection.setRequestMethod("GET");
@@ -144,10 +180,11 @@ public class Fun {
             reader.close();
 
             JsonObject json = jsonParser.parse(builder.toString()).getAsJsonObject();
-            JsonArray items = json.getAsJsonObject("data").getAsJsonArray("items");
+            JsonArray items = json.getAsJsonArray("items");
             if(items.size() > 0) {
                 JsonObject item = items.get(0).getAsJsonObject();
-                pixie.msg(room, Utils.urlEncode(YOUTUBE_VIDEO_URL, "v", item.get("id").getAsString()));
+                String title = item.getAsJsonObject("snippet").get("title").getAsString();
+                pixie.msg(room, title + "\n" + Utils.urlEncode(YOUTUBE_VIDEO_URL, "v", item.getAsJsonObject("id").get("videoId").getAsString()));
             } else {
                 pixie.msgTo(room, user, "Got no results!");
             }
@@ -191,6 +228,7 @@ public class Fun {
             }
         } catch(IOException e) {
             pixie.msgTo(room, user, "THE FUCKING WEATHER MODULE FAILED FUCK!");
+            e.printStackTrace();
         }
     }
 }
