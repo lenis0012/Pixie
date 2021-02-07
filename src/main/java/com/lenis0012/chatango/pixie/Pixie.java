@@ -1,9 +1,9 @@
 package com.lenis0012.chatango.pixie;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Maps;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.CacheLoader;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonPrimitive;
 import com.lenis0012.chatango.bot.api.Message;
@@ -24,20 +24,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 public class Pixie {
-    private final LoadingCache<String, UserModel> userCache = CacheBuilder.newBuilder().expireAfterAccess(10L, TimeUnit.MINUTES).build(new CacheLoader<String, UserModel>() {
-        @Override
-        public UserModel load(String s) throws Exception {
-            UserModel model = new UserModel(s);
-            database().loadModel(model, new BasicDBObject("Name", model.getName()));
-            return model;
-        }
+    private final LoadingCache<String, UserModel> userCache = Caffeine.newBuilder().expireAfterAccess(10L, TimeUnit.MINUTES).build(s -> {
+        UserModel model = new UserModel(s);
+        database().loadModel(model, new BasicDBObject("Name", model.getName()));
+        return model;
     });
     private final Set<CommandInfo> commands;
     private final Engine engine;
@@ -48,7 +43,7 @@ public class Pixie {
     private final String imgurApiKey;
     private List<String> truths;
     private List<String> dares;
-    private Map<String, List<String>> replacements = Maps.newConcurrentMap();
+    private Map<String, List<String>> replacements = new ConcurrentHashMap<>();
     private final SimSimi simSimi;
     private boolean muted;
     private long pingTime;
@@ -74,6 +69,10 @@ public class Pixie {
 
         this.simSimi = new SimSimi(this);
         config.save();
+    }
+
+    public void clearCache() {
+        userCache.asMap().clear();
     }
 
     public String getImgurApiKey() {
@@ -113,12 +112,22 @@ public class Pixie {
         long expiry = config.get("pastebin.expiry", new JsonPrimitive(0L)).getAsLong();
         if(expiry <= System.currentTimeMillis()) {
             // Generate new url
-            StringBuilder builder = new StringBuilder();
-            for(CommandInfo info : commands) {
-                builder.append(info.getModel().getName());
+            StringBuilder builder = new StringBuilder("--- User Commands ---\n");
+            List<CommandInfo> cmds = new ArrayList<>(commands);
+            Collections.sort(cmds, (cmd1, cmd2) -> cmd1.getModel().getName().compareTo(cmd2.getModel().getName()));
+            for(CommandInfo info : cmds) {
                 if(info.getMethod().getAnnotation(Command.class).adminOnly()) {
-                    builder.append(" [Admin Only]");
+                    continue;
                 }
+                builder.append(info.getModel().getName());
+                builder.append("\n");
+            }
+            builder.append("--- Admin commands ---\n");
+            for(CommandInfo info : cmds) {
+                if(!info.getMethod().getAnnotation(Command.class).adminOnly()) {
+                    continue;
+                }
+                builder.append(info.getModel().getName());
                 builder.append("\n");
             }
             String apiUrl = "http://pastebin.com/api/api_post.php";
@@ -207,7 +216,7 @@ public class Pixie {
     }
 
     public UserModel getUser(String name) {
-        return userCache.getUnchecked(name.toLowerCase());
+        return userCache.get(name.toLowerCase());
     }
 
     public void msg(final Room room, final String msg, long time, TimeUnit unit) {

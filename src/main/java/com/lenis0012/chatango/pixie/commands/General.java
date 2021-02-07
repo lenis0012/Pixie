@@ -1,6 +1,5 @@
 package com.lenis0012.chatango.pixie.commands;
 
-import com.google.common.base.Joiner;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -11,12 +10,12 @@ import com.lenis0012.chatango.pixie.Command;
 import com.lenis0012.chatango.pixie.Main;
 import com.lenis0012.chatango.pixie.Pixie;
 import com.lenis0012.chatango.pixie.entities.UserModel;
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
+import kong.unirest.HttpResponse;
+import kong.unirest.Unirest;
+import kong.unirest.UnirestException;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Base64;
 
@@ -48,7 +47,7 @@ public class General {
 
     @Command(adminOnly = true)
     public void say(Room room, User user, String[] args) {
-        pixie.msg(room, Joiner.on(" ").join(args));
+        pixie.msg(room, String.join(" ", args));
     }
 
     @Command(aliases = {"pic", "upic"})
@@ -167,13 +166,16 @@ public class General {
             pixie.msgTo(room, user, "Invalid image type (png/jpg)");
             return;
         }
-        String url = Utils.urlEncode("https://apicloud-facerect.p.mashape.com/process-url.json", "features", "false", "url", args[0]);
-        HttpResponse<String> response = Unirest.get(url)
-                .header("X-Mashape-Key", pixie.getMashapeKey())
+        String url = Utils.urlEncode("https://face-detection6.p.rapidapi.com/img/face-age-gender");
+        JsonObject body = new JsonObject();
+        body.addProperty("url", args[0]);
+        HttpResponse<String> response = Unirest.post(url)
+                .body(body)
+                .header("X-RapidAPI-Key", pixie.getMashapeKey())
                 .header("Accept", "application/json").asString();
-        if(response.getCode() == 200) {
+        if(response.getStatus() == 200) {
             JsonObject json = jsonParser.parse(response.getBody()).getAsJsonObject();
-            JsonArray faces = json.getAsJsonArray("faces");
+            JsonArray faces = json.getAsJsonArray("detected_faces");
             if(faces.size() > 0) {
                 pixie.msgTo(room, user, "Found " + faces.size() + " faces in image, now processing...");
                 try {
@@ -182,14 +184,15 @@ public class General {
                     Graphics2D g = image.createGraphics();
                     for(int i = 0; i < faces.size(); i++) {
                         JsonObject face = faces.get(i).getAsJsonObject();
-                        int x = face.get("x").getAsInt();
-                        int y = face.get("y").getAsInt();
-                        int width = (int) (face.get("width").getAsInt());
-                        int height = (int) (face.get("height").getAsInt());
-                        x -= (int) (width * 0.25);
-                        y -= (int) (height * 0.25);
-                        width *= 1.5;
-                        height *= 1.5;
+                        JsonObject boundingBox = face.getAsJsonObject("BoundingBox");
+                        int x = boundingBox.get("startX").getAsInt();
+                        int y = boundingBox.get("startY").getAsInt();
+                        int width = (boundingBox.get("endX").getAsInt()) - x;
+                        int height = (boundingBox.get("endY").getAsInt()) - y;
+                        x -= (int) (width * 0.1);
+                        y -= (int) (height * 0.1);
+                        width *= 1.2;
+                        height *= 1.2;
                         g.drawImage(trollface, x, y, width, height, null);
                     }
 
@@ -241,7 +244,7 @@ public class General {
                 pixie.msgTo(room, user, "Couldn't find any faces!");
             }
         } else {
-            pixie.msgTo(room, user, "Invalid response code: " + response.getCode());
+            pixie.msgTo(room, user, "Invalid response code: " + response.getStatus());
         }
     }
 

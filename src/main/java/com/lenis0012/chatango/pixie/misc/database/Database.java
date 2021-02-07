@@ -11,11 +11,11 @@
 
 package com.lenis0012.chatango.pixie.misc.database;
 
-import com.google.common.collect.Lists;
 import com.lenis0012.chatango.pixie.misc.CommonUtil;
 import com.lenis0012.chatango.pixie.misc.reflection.SafeField;
 import com.mongodb.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -43,7 +43,7 @@ public class Database {
         // Find the collection name
         Model model = getAnnotation(type);
 
-        List<T> list = Lists.newArrayList();
+        List<T> list = new ArrayList<>();
         DBCollection collection = getCollection(model.name());
         DBCursor cursor = query == null ? collection.find() : collection.find(query);
         while(cursor.hasNext()) {

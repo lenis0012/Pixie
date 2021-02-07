@@ -1,12 +1,9 @@
 package com.lenis0012.chatango.pixie.commands;
 
-import com.google.code.chatterbotapi.ChatterBotFactory;
-import com.google.code.chatterbotapi.ChatterBotSession;
-import com.google.code.chatterbotapi.ChatterBotType;
-import com.google.common.base.Joiner;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import com.lenis0012.chatango.bot.ChatangoAPI;
 import com.lenis0012.chatango.bot.api.Badge;
 import com.lenis0012.chatango.bot.api.Channel;
@@ -19,11 +16,11 @@ import com.lenis0012.chatango.pixie.CommandInfo;
 import com.lenis0012.chatango.pixie.Pixie;
 import com.lenis0012.chatango.pixie.entities.Definition;
 import com.lenis0012.chatango.pixie.entities.UserModel;
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
+import kong.unirest.HttpResponse;
+import kong.unirest.Unirest;
+import kong.unirest.UnirestException;
 import lombok.SneakyThrows;
 
 import javax.script.ScriptEngine;
@@ -36,26 +33,24 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class Admin {
-    private static final String URBAN_DIR_URL = "https://mashape-community-urban-dictionary.p.mashape.com/define";
+    private static final String URBAN_DIR_URL = "https://mashape-community-urban-dictionary.p.rapidapi.com/define";
     private final JsonParser jsonParser = new JsonParser();
     private final Pixie pixie;
     private final ScriptEngine scriptTank;
-    private final ChatterBotFactory chatterBotFactory;
     private boolean botRunning = false;
 
     public Admin(Pixie pixie) {
         this.pixie = pixie;
         ScriptEngineManager manager = new ScriptEngineManager();
         this.scriptTank = manager.getEngineByName("js");
-        this.chatterBotFactory = new ChatterBotFactory();
     }
 
     @Command(adminOnly = true)
     @SneakyThrows(UnirestException.class)
     public void define(Room room, User user, String[] args) {
-        String name = Joiner.on(' ').join(args);
+        String name = String.join(" ", args);
         String url = Utils.urlEncode(URBAN_DIR_URL, "term", name);
-        HttpResponse<String> response = Unirest.get(url).header("X-Mashape-Key", pixie.getMashapeKey())
+        HttpResponse<String> response = Unirest.get(url).header("X-RapidAPI-Key", pixie.getMashapeKey())
                 .header("Accept", "text/plain").asString();
         System.out.println(response.getBody());
         JsonObject object = (JsonObject) jsonParser.parse(response.getBody());
@@ -206,26 +201,30 @@ public class Admin {
 
     @Command(aliases = {"adddare"}, adminOnly = true)
     public void addDare(Room room, User user, String[] args) {
-        pixie.getDares().add(Joiner.on(' ').join(args));
+        String dare = String.join(" ", args);
+        pixie.getDares().add(String.join(" ", args));
+        pixie.getConfig().getList("dares").add(new JsonPrimitive(dare));
         pixie.getConfig().save();
         pixie.msgTo(room, user, "Added message to dare list!");
     }
 
     @Command(aliases = {"addtruth"}, adminOnly = true)
     public void addTruth(Room room, User user, String[] args) {
-        pixie.getTruths().add(Joiner.on(' ').join(args));
+        String truth = String.join(" ", args);
+        pixie.getTruths().add(String.join(" ", args));
+        pixie.getConfig().getList("truths").add(new JsonPrimitive(truth));
         pixie.getConfig().save();
         pixie.msgTo(room, user, "Added message to truth list!");
     }
 
     @Command(adminOnly = true)
     public void dares(Room room, User user, String[] args) {
-        pixie.msgTo(room, user, Joiner.on("\n").join(pixie.getDares()));
+        pixie.msgTo(room, user, String.join("\n", pixie.getDares()));
     }
 
     @Command(adminOnly = true)
     public void truths(Room room, User user, String[] args) {
-        pixie.msgTo(room, user, Joiner.on("\n").join(pixie.getTruths()));
+        pixie.msgTo(room, user, String.join("\n", pixie.getTruths()));
     }
 
     @Command(adminOnly = true)
@@ -235,7 +234,7 @@ public class Admin {
 
     @Command(adminOnly = true)
     public void eval(Room room, User user, String[] args) {
-        String cmd = Joiner.on(' ').join(args).replace("\";", "\"");
+        String cmd = String.join(" ", args).replace("\";", "\"");
         try {
             Object response = scriptTank.eval(cmd);
             if(response != null) {
@@ -249,11 +248,12 @@ public class Admin {
     @SneakyThrows
     @Command(adminOnly = true)
     public void rant(final Room room, final User user, String[] args) {
-        final String topic = Joiner.on(' ').join(args);
-        final ChatterBotSession ses1 = chatterBotFactory.create(ChatterBotType.CLEVERBOT).createSession();
-        final ChatterBotSession ses2 = chatterBotFactory.create(ChatterBotType.JABBERWACKY).createSession();
+        final String topic = String.join(" ", args);
+//        final ChatterBotSession ses1 = chatterBotFactory.create(ChatterBotType.CLEVERBOT).createSession();
+//        final ChatterBotSession ses2 = chatterBotFactory.create(ChatterBotType.CLEVERBOT).createSession();
         this.botRunning = !botRunning; // Toggle
         pixie.msgTo(room, user, botRunning ? "Starting rant!" : "Stopping rant!");
+
         if(botRunning) {
             new Thread() {
                 @Override
@@ -262,10 +262,11 @@ public class Admin {
                     String response = topic;
                     while(botRunning) {
                         try {
-                            response = jw ? ses2.think(response) : ses1.think(response);
+                            response = "";// jw ? ses2.think(response) : ses1.think(response);
                             pixie.msg(room, (jw ? "JW: " : "CB: ") + response);
                             jw = !jw;
                         } catch(Exception e) {
+                            e.printStackTrace();
                             botRunning = false;
                         }
                         try {
@@ -312,11 +313,11 @@ public class Admin {
         login(room, user, new String[]{pixie.getEngine().getCredentials().getUsername(), pixie.getEngine().getCredentials().getPassword()});
     }
 
-    @Command(adminOnly = true)
+    @Command(adminOnly = false)
     public void def(final Room room, final User user, String[] args) {
-        String cmd = Joiner.on(' ').join(args);
+        String cmd = String.join(" ", args);
         if(!cmd.contains(" as ")) {
-            pixie.msgTo(room, user, "Usage: pixiedefine [word] as [definition]");
+            pixie.msgTo(room, user, "Usage: pixie def [word] as [definition]");
         }
 
         String word = cmd.split(Pattern.quote(" as "))[0];
@@ -349,7 +350,7 @@ public class Admin {
             userList = room.getUserList().stream().map(User::getName).collect(Collectors.toList());
         }
         System.out.println(userList);
-        pixie.msgTo(room, user, "Users: " + Joiner.on(", ").join(userList));
+        pixie.msgTo(room, user, "Users: " + String.join(", ", userList));
     }
 
     @Command(aliases = {"mute", "unmute"}, adminOnly = true)

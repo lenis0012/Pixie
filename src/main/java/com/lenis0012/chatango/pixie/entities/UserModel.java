@@ -1,6 +1,5 @@
 package com.lenis0012.chatango.pixie.entities;
 
-import com.google.common.collect.Lists;
 import com.lenis0012.chatango.pixie.misc.database.Model;
 import com.lenis0012.chatango.pixie.misc.database.Storable;
 
@@ -14,10 +13,10 @@ public class UserModel {
     private String name;
 
     @Storable(genericType = String.class)
-    private List<String> ipAddresses = Lists.newArrayList();
+    private List<String> ipAddresses = new ArrayList<>();
 
     @Storable(genericType = String.class)
-    private List<String> puids = Lists.newArrayList();
+    private List<String> puids = new ArrayList<>();
 
     @Storable
     private boolean admin;
@@ -36,6 +35,9 @@ public class UserModel {
 
     @Storable(genericType = String.class)
     private List<String> stalkers = new ArrayList<>();
+
+    @Storable(genericType = String.class)
+    private List<String> claimed = new ArrayList<>();
 
     public UserModel() {
     }
@@ -122,5 +124,17 @@ public class UserModel {
 
     public String getLastIp() {
         return lastIp;
+    }
+
+    public List<String> getClaimed() {
+        return claimed;
+    }
+
+    public void addClaimed(String claimed) {
+        this.claimed.add(claimed);
+    }
+
+    public void removeClaimed(String claimed) {
+        this.claimed.remove(claimed);
     }
 }

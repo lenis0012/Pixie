@@ -1,8 +1,16 @@
 package com.lenis0012.chatango.pixie.misc;
 
 import com.google.gson.JsonObject;
+import com.lenis0012.chatango.bot.utils.Utils;
+import lombok.SneakyThrows;
+import org.json.JSONObject;
+import org.json.XML;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.Arrays;
 import java.util.List;
 
@@ -95,5 +103,19 @@ public class CommonUtil {
         int V = charMap0['V'] + charMap1['V'];
         int E = charMap0['E'] + charMap1['E'];
         return ((L + O) * (L + V) * (L + E) * (O + V) * (O + E) * (V + E)) % 100;
+    }
+
+    @SneakyThrows
+    public static JSONObject getBGInfo(String username) {
+        URL url = new URL(Utils.formatUrl("http://fp.chatango.com/profileimg/%s/%s/%s/msgbg.xml", username.substring(0, 1), username.substring(1, 2), username));
+        URLConnection connection = url.openConnection();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder builder = new StringBuilder();
+        String line;
+        while((line = reader.readLine()) != null) {
+            builder.append(line);
+        }
+
+        return XML.toJSONObject(builder.toString());
     }
 }

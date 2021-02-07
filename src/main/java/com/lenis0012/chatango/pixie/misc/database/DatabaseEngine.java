@@ -11,11 +11,8 @@
 
 package com.lenis0012.chatango.pixie.misc.database;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Sets;
-import com.lenis0012.chatango.pixie.misc.CaseInsensitiveMap;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.lenis0012.chatango.pixie.misc.CommonUtil;
 import com.lenis0012.chatango.pixie.misc.database.codec.*;
 import com.lenis0012.chatango.pixie.misc.reflection.SafeClass;
@@ -24,8 +21,11 @@ import com.mongodb.DB;
 import com.mongodb.MongoClient;
 
 import java.net.UnknownHostException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -41,7 +41,7 @@ public class DatabaseEngine {
     }
 
     private final LoadingCache<Class<?>, Map<String, SafeField>> fieldCache;
-    private final Set<DBCodec<?>> codecs = Sets.newConcurrentHashSet();
+    private final Set<DBCodec<?>> codecs = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final MongoClient client;
 
     public DatabaseEngine(String address, int port) {
@@ -60,16 +60,13 @@ public class DatabaseEngine {
         registerCodec(MapCodec.class);
 
         // Create field cache
-        this.fieldCache = CacheBuilder.newBuilder().expireAfterAccess(5L, TimeUnit.MINUTES).maximumSize(32L).build(new CacheLoader<Class<?>, Map<String, SafeField>>() {
-            @Override
-            public Map<String, SafeField> load(Class<?> aClass) throws Exception {
-                Map<String, SafeField> map = new CaseInsensitiveMap<>();
-                SafeClass safeClass = new SafeClass(aClass);
-                for(SafeField field : safeClass.getFields()) {
-                    map.put(field.getName(), field);
-                }
-                return map;
+        this.fieldCache = Caffeine.newBuilder().expireAfterAccess(5L, TimeUnit.MINUTES).maximumSize(32L).build(aClass -> {
+            Map<String, SafeField> map = new HashMap<>();
+            SafeClass safeClass = new SafeClass(aClass);
+            for(SafeField field : safeClass.getFields()) {
+                map.put(field.getName(), field);
             }
+            return map;
         });
     }
 
@@ -109,10 +106,6 @@ public class DatabaseEngine {
     }
 
     public Map<String, SafeField> getFields(Class<?> clazz) {
-        try {
-            return fieldCache.get(clazz);
-        } catch(ExecutionException e) {
-            return null;
-        }
+        return fieldCache.get(clazz);
     }
 }
