@@ -1,5 +1,5 @@
 config.json
-target/
-*.iml
+**/target/
+**/*.iml
 .idea/
 logs/

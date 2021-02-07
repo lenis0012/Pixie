@@ -30,7 +30,7 @@ public class Main implements EventListener {
     public static void main(String[] args) throws Exception {
         if(args.length < 3) {
             throw new RuntimeException("Missing arguments! [userame] [password] [rooms]");
-        }ta
+        }
         String username = args[0];
         String password = args[1];
         List<String> rooms = Arrays.asList(args[2].split(","));
